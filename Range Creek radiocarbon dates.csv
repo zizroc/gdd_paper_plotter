@@ -1,0 +1,34 @@
+Site_Number,Sample_Number,Material_Type,Isotopic_Value,Radiocarbon age (mean BP),SE,Cal age low,cal high,cal median,Provenience
+42Em3315,Beta-235068,unburned plant,-22.6,110,60,1670,1950,1830,Wild tobacco bundle
+LC-13-06,UGAMS-16506,unburned plant,-24.9,880,25,1040,1220,1170,Wood from granary
+42Em2861,UGAMS-12221,charcoal,-22.5,900,20,1040,1210,1110,Beam from pithouse
+42Em3213,Beta-202190,wood,-22.9,930,40,1020,1190,1100,Beam from pithouse
+42Em3048,UGAMS-3951,unburned plant,-11.42,932,24,1030,1160,1100,Corncob
+42Em3585,Beta-214831,unburned plant,-23,940,40,1010,1190,1100,Snares
+42Em3217,UGAMS-12220,unburned plant,-23.2,940,20,1030,1160,1100,Binding from granary
+42Em2885,Beta-175755,unburned plant,-9.1,940,50,1000,1220,1100,Corn cob
+42Em2886,UGAMS-3950,unburned plant,-23.74,948,23,1020,1160,1100,Basket
+42Em0019,Beta-235067,charcoal,-21.1,950,40,1010,1190,1100,Beam from pithouse
+42Em0761,Beta-202189,unburned plant,-21.1,950,40,1010,1190,1100,Grass
+42Em2837,Beta-175753,unburned plant,-8.7,950,40,1010,1190,1100,Corn cob
+42Em0019,UGAMS-3944,charcoal,-20.36,951,24,1020,1160,1100,Hearth
+42Em3424,UGAMS-3952,unburned plant,-10.63,958,23,1020,1160,1100,Corn cob
+42Em2861,PRI-08-102-1,charcoal,-22.4,960,15,1020,1160,1100,Beam from pithouse
+42Em3998,UGAMS-3953,unburned plant,-20.78,963,24,1050,1160,1100,Snares
+42Em2885,UGAMS-3949,unburned plant,-10.65,965,23,1010,1160,1090,Corn cob
+42Em4318,UGAMS-12223,unburned plant,-10.3,980,20,1010,1160,1040,Corn cob
+42Em0741,Beta-202191,wood,-21.7,980,40,990,1160,1080,Beam from granary
+42Em3117,Beta-202188,unburned plant,-9.5,980,40,990,1160,1080,Corn cob
+42Em3294,Beta-214832,unburned plant,-22.8,990,40,980,1160,1050,Arrow
+42Em2849,Beta-203630,unburned plant,-8.9,1000,40,970,1160,1030,Corn cob
+42Em3359,UGAMS-12222,wood,-25.2,1010,20,980,1040,1020,Binding from granary
+42Em4261,UGAMS-12219,unburned plant,-9.5,1050,20,960,1030,1000,Corn cob
+42Em0019,UGAMS-3945,charcoal,-20.35,1053,24,900,1030,1000,Beam from pithouse
+42Em2843,UGAMS-3946,unburned plant,-27.97,1077,24,890,1020,970,Arrow
+42Em2861,UGAMS-16504,charcoal,-25.2,1115,24,880,990,940,Hearth
+42Em2881,Beta-175754,unburned plant,-10.9,1130,40,770,990,920,Corn cob
+42Em2865,UGAMS-3948,unburned plant,-11.43,1133,23,770,990,930,Corn cob
+42Em2861,UGAMS-3847,charcoal,-20.43,1153,24,770,970,890,Bean from pithouse
+42Em2861,UGAMS-16505,charcoal,-21.5,1185,24,770,940,830,Hearth
+42Em2861,UGAMS-16503,charcoal,-22.3,1540,24,420,580,490,Hearth
+32Em3170,Beta-202187,unburned plant,-26,1660,40,250,540,390,Basket
