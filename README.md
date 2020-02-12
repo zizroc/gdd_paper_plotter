@@ -9,3 +9,5 @@ Reference: Martindale, Andrew, Richard Morlan, Matthew Betts, Michael Blake, Kon
 
 The PRISM DEM data comes from: http://www.prism.oregonstate.edu/
 Refrence: PRISM Climate Group, Oregon State University, http://prism.oregonstate.edu, created 15 Jan 2020
+
+The climate data (tmin and tmax, and precipitation) are enormous. I aim to process them into much smaller files and link to here; in the meantime, contact me for data if desired: zizroc@nceas.ucsb.edu
