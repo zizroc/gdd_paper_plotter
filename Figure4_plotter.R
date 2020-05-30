@@ -174,13 +174,13 @@ p1 <- ggplot(data = GDD_sites,
            x = 1100, 
            y = -0.4, 
            label = "MCA", 
-           size = 8, 
+           size = 7, 
            alpha = 0.6) + 
   annotate("text", 
            x = 1400, 
            y = -0.4, 
            label = "LIA", 
-           size = 8, 
+           size = 7, 
            alpha = 0.6)
 
 p2 <- ggplot(data = GDD_sites, aes(x = year_CE)) + 
@@ -211,7 +211,7 @@ p2 <- ggplot(data = GDD_sites, aes(x = year_CE)) +
                      limits = c(850, 1449))
 
 
-p3 <- ggplot(data = PPT_sites), 
+p3 <- ggplot(data = PPT_sites, 
              aes(x = year_CE)) + 
   geom_vline(data = alpha_mca, 
              aes(xintercept = year, 
@@ -253,39 +253,110 @@ p3 <- ggplot(data = PPT_sites),
 #Reference: Boomgarden, S. A., Metcalfe, D., & Springer, C. (2014). Prehistoric archaeology in range Creek canyon, Utah: a summary of the activities of the range Creek field station. Utah Archaeology, 27(1), 9-32.
 source("/home/thomson/Scripts/Fremont_radiocarbon_age_calibration.R") #CalAges
 
-p4 <-   ggplot(data = CalAges %>% 
-                 filter(year_CE >= 0, 
-                        year_CE < 2000, 
-                        significance == "Fremont"),
-               aes(x = year_CE,
-                   y = elevation)) + 
-  geom_vline(xintercept = seq(800, 1500, by = 100), alpha = 0.25, size = 0.25) +
-  geom_point(aes(alpha = (sum_density)^0.25, 
-                 colour = significance), 
-             shape = "|", 
-             size = 1) + 
-  geom_smooth(aes(weight = sum_density, 
-                  colour = significance), 
-              method = "loess", 
-              span = 0.7, 
-              se = FALSE, 
-              size = 1, 
-              alpha = 0.7) + 
-  scale_color_manual(values = c("Fremont" = "#786290")) + 
+load(file = "/home/thomson/Data/Rdata/ap_sites_ckde_elev.Rdata") #tmp_ap
+load(file = "/home/thomson/Data/Rdata/ap_sites_mean_ckde_elev.Rdata") #means_ap
+load(file = "/home/thomson/Data/CalAges.Rdata") #CalAges
+
+p4 <- ggplot() + 
+  geom_line(data = tmp_ap %>% 
+              filter(significance == "Fremont"), 
+            aes(x = year_CE, 
+                y = SP), 
+            colour = "#786290", 
+            alpha = 0.25, 
+            size = 0.5) + 
+  # scale_colour_manual(values = c("Fremont" = "#786290", 
+  #                                "Other" = "#627F90")) + 
+  geom_line(data = means_ap %>% 
+              filter(significance == "Fremont"), 
+            aes(x = year_CE, y = SP), 
+            colour = "#786290") + 
+   
+  # geom_line(data = means_ap %>% 
+  #             filter(significance == "Other"), 
+  #           aes(x = year_CE, y = SP), 
+  #           colour = "#627F90") + 
   theme_minimal() + 
+  theme(
+    legend.position = "none",
+    axis.title.x = element_blank(), 
+    axis.text.x = element_blank()
+  ) + 
   labs(
-    x = "Year CE", 
-    y = "Elev. (m asl)", 
+    y = "Sum. Prob.",
     tag = "D"
   ) + 
+  scale_x_continuous(breaks = seq(0, 2000, by = 100)) + 
+  coord_cartesian(xlim = c(850, 1450))
+
+load(file = "/home/thomson/Data/Rdata/CKDE_means_coord.Rdata") #CKDE_means_coord
+
+p5 <- ggplot() + 
+  geom_smooth(data = CKDE_means_coord %>% 
+                filter(significance == "Fremont", 
+                       year_CE > 400 & year_CE < 1300), 
+              aes(x = year_CE,
+                  y = elevation, 
+                  weight = sum_density),
+              colour = "black", 
+              method = "loess", 
+              span = 0.6, 
+              se = FALSE, 
+              size = 1, 
+              linetype = "solid",
+              alpha = 0.5) + 
+  theme_minimal() + 
   theme(
-    legend.position = "none", 
-    axis.title.x = element_blank(),
+    legend.position = "none",
+    axis.title.x = element_blank(), 
     axis.text.x = element_blank()
+  ) + 
+  labs(
+    y = "elev. (m asl)",
+    tag = "E"
   ) + 
   scale_x_continuous(breaks = seq(0, 2000, by = 100)) + 
   coord_cartesian(xlim = c(850, 1450), 
-                  ylim = c(1750, 1900))
+                  ylim = c(1750, 1850))
+
+
+
+# 
+# 
+# 
+# p4 <-   ggplot(data = CalAges %>% 
+#                  filter(year_CE >= 0, 
+#                         year_CE < 2000, 
+#                         significance == "Fremont"),
+#                aes(x = year_CE,
+#                    y = elevation)) + 
+#   geom_vline(xintercept = seq(800, 1500, by = 100), alpha = 0.25, size = 0.25) +
+#   geom_point(aes(alpha = (sum_density)^0.25, 
+#                  colour = significance), 
+#              shape = "|", 
+#              size = 1) + 
+#   geom_smooth(aes(weight = sum_density, 
+#                   colour = significance), 
+#               method = "loess", 
+#               span = 0.7, 
+#               se = FALSE, 
+#               size = 1, 
+#               alpha = 0.7) + 
+#   scale_color_manual(values = c("Fremont" = "#786290")) + 
+#   theme_minimal() + 
+#   labs(
+#     x = "Year CE", 
+#     y = "Elev. (m asl)", 
+#     tag = "D"
+#   ) + 
+#   theme(
+#     legend.position = "none", 
+#     axis.title.x = element_blank(),
+#     axis.text.x = element_blank()
+#   ) + 
+#   scale_x_continuous(breaks = seq(0, 2000, by = 100)) + 
+#   coord_cartesian(xlim = c(850, 1450), 
+#                   ylim = c(1750, 1900))
 
 #fill overlying histograms with onset time and end-time for occupations
 #at each location, there should be an onset and end-time
@@ -348,30 +419,30 @@ occ_aba_ap <- inner_join(occ_ap,
   mutate(longevity = aba_year - occ_year)
 
 
-
-p5 <- ggplot(data = onset_fremont %>% 
-           filter(group == "Median"),
-         aes(year, fill = group)) + 
-  geom_vline(xintercept = seq(800, 1500, by = 100), alpha = 0.25, size = 0.25) + 
-  geom_histogram(bins=13, 
-                 alpha = 0.7) + 
-  scale_fill_manual(values = c("Median" = "darkblue")) + 
-  geom_hline(yintercept = 0, size = 0.25, alpha = 0.6) + 
-  theme_minimal() + 
-  labs(
-    x = "Year CE", 
-    y = "Site count", 
-    tag = "D"
-  ) + 
-  theme(
-    legend.position = c(0.9, 0.9),
-    legend.title = element_blank(), 
-    axis.text.x = element_blank(), 
-    axis.title.x = element_blank()
-  ) + 
-  scale_x_continuous(breaks = seq(0, 2000, by = 100), 
-                     labels = seq(0, 2000, by = 100), 
-                     limits = c(850, 1449))
+# 
+# p5 <- ggplot(data = onset_fremont %>% 
+#            filter(group == "Median"),
+#          aes(year, fill = group)) + 
+#   geom_vline(xintercept = seq(800, 1500, by = 100), alpha = 0.25, size = 0.25) + 
+#   geom_histogram(bins=13, 
+#                  alpha = 0.7) + 
+#   scale_fill_manual(values = c("Median" = "darkblue")) + 
+#   geom_hline(yintercept = 0, size = 0.25, alpha = 0.6) + 
+#   theme_minimal() + 
+#   labs(
+#     x = "Year CE", 
+#     y = "Site count", 
+#     tag = "D"
+#   ) + 
+#   theme(
+#     legend.position = c(0.9, 0.9),
+#     legend.title = element_blank(), 
+#     axis.text.x = element_blank(), 
+#     axis.title.x = element_blank()
+#   ) + 
+#   scale_x_continuous(breaks = seq(0, 2000, by = 100), 
+#                      labels = seq(0, 2000, by = 100), 
+#                      limits = c(850, 1449))
 
 p6 <- ggplot(data = onset_fremont %>% 
                filter(group != "Median"),
@@ -401,17 +472,103 @@ p6 <- ggplot(data = onset_fremont %>%
 
 
 
+load(file = "/home/thomson/Data/Rdata/expnull_frem.Rdata") #expnull_frem
+
+roc_data <- expnull_frem$result.roc %>% 
+  mutate(year_CE = 1950 - calBP)
+
+expnull_frem_clean <- expnull_frem$result.roc %>% 
+  na.omit() %>% 
+  mutate(year_CE = 1950 - calBP)
+
+envel <- rbind(data.frame(x = expnull_frem_clean$year_CE, 
+                          y = expnull_frem_clean$lo.roc), 
+               data.frame(x = expnull_frem_clean$year_CE, 
+                          y = expnull_frem_clean$hi.roc) %>% 
+                 arrange(., -x))
+
+
+#Values from significant positive/negative local deviations for Rate of Change analysis from modelTest()
+sig_devs <- rbind(data.frame(id = "positive", 
+                             max_yrBP = c(1625, 1343, 364, 308, 153), 
+                             min_yrBP = c(1583, 1085, 353, 206, 57)), 
+                  data.frame(id = "negative",  
+                             max_yrBP = c(1851, 823, 595, 198), 
+                             min_yrBP = c(1658, 623, 368, 155))) %>% 
+  mutate(min_yearCE = 1950-max_yrBP, 
+         max_yearCE = 1950-min_yrBP, 
+         min_SP = -1, 
+         max_SP = 1)
+
+p7 <- ggplot(data = roc_data, 
+             aes(x = year_CE)) + 
+  geom_hline(yintercept = 0, 
+             alpha = 0.5) + 
+  geom_polygon(data = envel, 
+               aes(x = x, y = y), 
+               fill = "#786290", 
+               alpha = 0.3) + 
+  geom_line(aes(y = roc), 
+            size = 1, 
+            colour = "#786290") + 
+  geom_vline(xintercept = seq(sig_devs$min_yearCE[1], sig_devs$max_yearCE[1], 1), 
+             colour = "blue", 
+             alpha = 0.1, 
+             size = 0.2) + 
+  geom_vline(xintercept = seq(sig_devs$min_yearCE[2], sig_devs$max_yearCE[2], 1), 
+             colour = "blue", 
+             alpha = 0.1, 
+             size = 0.2) + 
+  geom_vline(xintercept = seq(sig_devs$min_yearCE[3], sig_devs$max_yearCE[3], 1), 
+             colour = "blue", 
+             alpha = 0.1, 
+             size = 0.2) + 
+  geom_vline(xintercept = seq(sig_devs$min_yearCE[4], sig_devs$max_yearCE[4], 1), 
+             colour = "blue", 
+             alpha = 0.1, 
+             size = 0.2) + 
+  geom_vline(xintercept = seq(sig_devs$min_yearCE[5], sig_devs$max_yearCE[5], 1), 
+             colour = "blue", 
+             alpha = 0.1, 
+             size = 0.2) + 
+  geom_vline(xintercept = seq(sig_devs$min_yearCE[6], sig_devs$max_yearCE[6], 1), 
+             colour = "red", 
+             alpha = 0.1, 
+             size = 0.2) + 
+  geom_vline(xintercept = seq(sig_devs$min_yearCE[7], sig_devs$max_yearCE[7], 1), 
+             colour = "red", 
+             alpha = 0.1, 
+             size = 0.2) + 
+  geom_vline(xintercept = seq(sig_devs$min_yearCE[8], sig_devs$max_yearCE[8], 1), 
+             colour = "red", 
+             alpha = 0.1, 
+             size = 0.2) + 
+  geom_vline(xintercept = seq(sig_devs$min_yearCE[9], sig_devs$max_yearCE[9], 1), 
+             colour = "red", 
+             alpha = 0.1, 
+             size = 0.2) + 
+  labs(
+    x = "Year CE", 
+    y = "Frem. occ. \nrate of change", 
+    tag = "E"
+  )  + 
+  theme_minimal() + 
+  scale_x_continuous(breaks = seq(0, 2000, by = 100), 
+                     labels = seq(0, 2000, by = 100)) + 
+  coord_cartesian(xlim = c(850, 1449), 
+                  ylim = c(-0.032, 0.01))
 
 
 
-png(file="/home/thomson/ERL_paper/Plots/Figure4.png", w = 1800, h = 2400, res=300)
+png(file="/home/thomson/ERL_paper/Plots/Figure4_updated.png", w = 1800, h = 2600, res=300)
 cowplot::plot_grid(p1, 
                    p2,
                    p3,
                    p4, 
-                   p6, 
+                   # p5, 
+                   p7, 
                    align = "v", 
                    nrow = 5, 
-                   rel_heights = c(1, 1, 1, 0.8, 0.9))
+                   rel_heights = c(1.1, 1.1, 1.1, 1, 1.2))
 dev.off()
 

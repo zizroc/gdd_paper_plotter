@@ -90,7 +90,7 @@ m1 <- ggplot(data = site_loc) +
              alpha = 0.6, 
              colour = "darkblue") + 
   scale_shape_manual(values = c("Fremont" = 15, 
-                                "Other" = 19), 
+                                "Other" = 17), 
                      name = "CARD site \nsignificance") + 
   geom_text(data = site_names, 
             aes(x = lon, y = lat, label = index), 
@@ -172,80 +172,15 @@ m2 <- ggplot() +
 
 gg_inset_map = ggdraw() +
   draw_plot(m1) +
-  draw_plot(m2, x = 0.55, y = 0.72, width = 0.3, height = 0.3)
+  draw_plot(m2, x = 0.55, y = 0.72, width = 0.30, height = 0.30)
 
 
-png(file="/home/thomson/ERL_paper/Plots/Figure1.png", w = 1800, h = 1700, res=300)
+png(file="/home/thomson/ERL_paper/Plots/Figure1_updated.png", w = 1800, h = 1700, res=300)
 grid.newpage()
 v1 <- viewport(width = 1, height = 1, x = 0.5, y = 0.5) #plot area for the main map
-v2 <- viewport(width = 0.38, height = 0.32, x = 0.77, y = 0.84) #plot area for the inset map
+v2 <- viewport(width = 0.38, height = 0.30, x = 0.77, y = 0.84) #plot area for the inset map
 print(m1, vp=v1) 
 print(m2, vp=v2)
 dev.off()
   
-
-
-#PRISM ppt data
-
-ppt_dir <- dir("/home/thomson/Data/PRISM/PRISM_ppt_30yr_normal_4kmM2_annual_bil", 
-               full.names = TRUE)
-#Elevation map of Utah
-#DEM from PRISM climate group
-# Refrence: PRISM Climate Group, Oregon State University, http://prism.oregonstate.edu, created 15 Jan 2020
-ppt_tm1 <- ppt_dir[grep("bil.bil", ppt_dir)]
-ppt_tm2 <- ppt_tm1[!grepl("aux.xml", ppt_tm1)]
-ppt_ras <- raster(ppt_tm2)
-crs(ppt_ras) <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
-
-ppt_ut <- crop(ppt_ras, c(xmin = -114.5, 
-                          xmax = -107.5, 
-                          ymin = 36.5, 
-                          ymax = 42.5))
-
-ppt_spdf <- as(ppt_ut, "SpatialPixelsDataFrame")
-ppt_df <- as.data.frame(ppt_spdf)
-colnames(ppt_df) <- c("values", "x", "y")
-
-
-ggplot(data = site_loc) + 
-  geom_tile(data = ppt_df, 
-            aes(x = x, 
-                y = y, 
-                fill = values), 
-            alpha = 0.7, 
-            show.legend = TRUE) + 
-  scale_fill_gradient2(low = "firebrick", 
-                      mid = "gold", 
-                      high = "blue", 
-                      midpoint = 700, 
-                      name = "Mean annual \nprec. (mm)") +
-  geom_sf(data = us_states_proj,
-          fill = "transparent") + 
-  geom_point(data = site_loc, 
-             aes(x = longitude, 
-                 y = latitude, 
-                 shape = significance), 
-             size = 3, 
-             alpha = 0.6, 
-             colour = "darkblue") + 
-  scale_shape_manual(values = c("Fremont" = 15, 
-                                "Other" = 19), 
-                     name = "CARD site \nsignificance") + 
-  geom_text(data = site_names, 
-            aes(x = lon, y = lat, label = index), 
-            colour = "white", 
-            size = 5) + 
-  labs(
-    x = "degrees west longitude", 
-    y = "degrees north latitude"
-  ) + 
-  theme_minimal() + 
-  theme(
-    legend.position = "left", 
-    legend.key = element_rect(fill = "#ffffff", 
-                              color = "#ffffff"), 
-    legend.box.background = element_rect(fill = "lightgrey")
-  ) + 
-  xlim(-114.25, -107) + 
-  ylim(36.75, 43)
 

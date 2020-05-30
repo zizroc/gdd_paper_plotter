@@ -11,7 +11,8 @@ library(zoo)
 library(cowplot)
 
 #See elevations source file for references
-source("/home/thomson/Scripts/Fremont_elevations.R") #DF_elev
+# source("/home/thomson/Scripts/Fremont_elevations.R") #DF_elev
+load(file = "/home/thomson/Data/Rdata/AP_sites_ages_elev_aws.Rdata") #DF_elev
 
 #These data come from the Canadian Archaeological Radiocarbon Database (CARD).
 #Reference: Martindale, Andrew, Richard Morlan, Matthew Betts, Michael Blake, Konrad Gajewski, Michelle Chaput, Andrew Mason, and Pierre Vermeersch (2016) Canadian Archaeological Radiocarbon Database (CARD 2.1), accessed January 10, 2020.
@@ -129,41 +130,46 @@ p1 <- ggplot(data = scp_gb_Temp, aes(x = year_CE,
 
 
 
-p2 <- ggplot(data = CalAges %>% 
+p2 <- ggplot() +
+  geom_point(data = CalAges %>% 
                filter(year_CE >= 0),
              aes(x = year_CE,
-                 y = elevation)) +
-  geom_point(aes(alpha = (sum_density)^0.25, 
+                 y = elevation, 
+                 size = sum_density^0.25, 
                  colour = significance), 
-             shape = "|", 
-             size = 1) + 
-  geom_smooth(aes(weight = sum_density, 
-                  colour = significance), 
+             # shape = "|", 
+             alpha = 0.02) + 
+  geom_smooth(data = CalAges %>% 
+                filter(year_CE >= 0 & year_CE < 1450),
+              aes(x = year_CE,
+                  y = elevation, 
+                  weight = sum_density),
+              colour = "black", 
               method = "loess", 
-              span = 0.8, 
+              span = 0.9, 
               se = FALSE, 
               size = 1, 
-              alpha = 0.7) + 
+              linetype = "solid",
+              alpha = 0.5) + 
   scale_color_manual(values = c("Fremont" = "#786290", 
                                "Other" = "#627F90")) + 
   facet_wrap(~significance, 
              ncol = 2) + 
   theme_minimal() + 
   labs(
-    x = "Year CE", 
     y = "Elevation (m asl)", 
     tag = "A"
   ) + 
   theme(
     legend.position = "none", 
-    # axis.title.x = element_blank(), 
+    axis.title.x = element_blank(), 
     # axis.text.x = element_blank(), 
     plot.margin = margin(t=0, r=0, b=-0.5, l=0, unit = "cm")
   ) + 
   # ylim(1120, 2050) +
   scale_x_continuous(labels = seq(0, 2000, by = 250), 
-                     breaks = seq(0, 2000, by = 250), 
-                     limits = c(0, 1500))
+                     breaks = seq(0, 2000, by = 250)) + 
+  coord_cartesian(xlim = c(0, 1500))
 
 
 
@@ -247,7 +253,296 @@ p3 <- ggplot(data = CalAges0 %>%
                      labels = seq(0, 2000, by = 250), 
                      limits = c(0, 1500))
 
+p3_legend <- cowplot::get_legend(p3)
+
 #grid.arrange(p1, p2, nrow = 2)
+
+load(file = "/home/thomson/Data/Rdata/fremont_ckde.Rdata") #frem_ckde
+load(file = "/home/thomson/Data/Rdata/other_ckde.Rdata") #othe_ckde
+
+tmp1 <- data.frame(significance = "Fremont", 
+                   frem_ckde$res.matrix %>% 
+                     melt(., value.name = "SP", na.rm = TRUE) %>% 
+                     rename("year_CE" = Var1, "simulation" = Var2))
+tmp2 <- data.frame(significance = "Other", 
+                   othe_ckde$res.matrix %>% 
+                     melt(., value.name = "SP", na.rm = TRUE) %>% 
+                     rename("year_CE" = Var1, "simulation" = Var2))
+tmp_ap <- rbind(tmp1, tmp2)
+
+means_ap <- rbind(data.frame(significance = "Fremont", 
+                             year_CE = c(1:2000), 
+                             SP = rowMeans(frem_ckde$res.matrix)), 
+                  data.frame(significance = "Other", 
+                             year_CE = c(1:2000), 
+                             SP = rowMeans(othe_ckde$res.matrix))) %>% 
+  na.omit()
+
+p4 <- ggplot() + 
+  geom_line(data = tmp_ap, 
+            aes(x = year_CE, y = SP, colour = significance), 
+            alpha = 0.25, 
+            size = 0.1) + 
+  geom_line(data = means_ap, 
+            aes(x = year_CE, y = SP, colour = significance), 
+            size = 1) + 
+  scale_colour_manual(values = c("Fremont" = "#786290", 
+                                 "Other" = "#627F90")) + 
+  theme_minimal() + 
+  theme(
+    legend.position = "none",
+    panel.grid.major.y = element_blank(), 
+    panel.grid.minor.y = element_blank(), 
+    strip.text.x = element_blank()
+  ) + 
+  facet_wrap(~significance, 
+             ncol = 2) + 
+  labs(x = "Year CE", 
+       y = "Summed Probability", 
+       tag = "B") + 
+  scale_x_continuous(position = "bottom", 
+                     breaks = seq(0, 2000, by = 250), 
+                     labels = seq(0, 2000, by = 250), 
+                     limits = c(0, 1500))
+
+#Make a data.frame of calibrated dates summed for each site
+DF_frem_Elev <- data.frame(DF_frem_elev, 
+                           DateID = DF_frem_elev %>% 
+                             rownames() %>% 
+                             as.integer(), 
+                           group_ind = DF_frem_elev %>% 
+                             group_indices(longitude, latitude, elevation))
+DF_othe_Elev <- data.frame(DF_othe_elev, 
+                           DateID = DF_othe_elev %>% 
+                             rownames() %>% 
+                             as.integer(), 
+                           group_ind = DF_othe_elev %>% 
+                             group_indices(longitude, latitude, elevation))
+
+ncount <- as.integer(ages_fremont2[[1]]$DateID)
+for(i in seq_along(ncount)){
+  tmp <- data.frame(DateID = i, ages_fremont2[[2]][i])
+  names(tmp) <- c("DateID", "calBP", "PrDens")
+  if(i==1) Tmp <- tmp
+  if(i >1) Tmp <- rbind(Tmp, tmp)
+  if(i==max(ncount)){
+    ages_frem <- Tmp
+    rm(Tmp, tmp)
+  }
+}
+rm(ncount)
+ncount <- as.integer(ages_other2[[1]]$DateID)
+for(i in seq_along(ncount)){
+  tmp <- data.frame(DateID = i, ages_other2[[2]][i])
+  names(tmp) <- c("DateID", "calBP", "PrDens")
+  if(i==1) Tmp <- tmp
+  if(i >1) Tmp <- rbind(Tmp, tmp)
+  if(i==max(ncount)){
+    ages_othe <- Tmp
+    rm(Tmp, tmp)
+  }
+}
+rm(ncount)
+
+#Sum probability densities over sites (groups)
+ages_coord_frem <- left_join(ages_frem, 
+                             DF_frem_Elev %>% 
+                               dplyr::select(DateID, group_ind, longitude, latitude, significance, elevation), 
+                             by = "DateID") %>% 
+  group_by(group_ind, calBP, longitude, latitude, elevation, significance) %>% 
+  summarize(SPD = sum(PrDens)) %>% 
+  ungroup()
+ages_coord_othe <- left_join(ages_othe, 
+                             DF_othe_Elev %>% 
+                               dplyr::select(DateID, group_ind, longitude, latitude, significance, elevation), 
+                             by = "DateID") %>% 
+  group_by(group_ind, calBP, longitude, latitude, elevation, significance) %>% 
+  summarize(SPD = sum(PrDens)) %>% 
+  ungroup()
+
+ages_coord_ap <- rbind(ages_coord_frem, 
+                       ages_coord_othe)
+
+
+#Now, instead of summing probability densities over groups, find composite kernel density functions (CKDE) by site
+
+#Do the following separately for each site
+
+ncount <- unique(DF_frem_Elev$group_ind)[order(unique(DF_frem_Elev$group_ind))]
+for(i in seq_along(ncount)){
+  
+  tmp_bins = binPrep(sites = rownames(DF_frem_Elev %>% 
+                                        filter(group_ind == i)), 
+                     ages = DF_frem_Elev %>% 
+                       filter(group_ind == i) %>% 
+                       pull(mean), 
+                     h = 10)
+  
+  tmp_ages <- rcarbon::calibrate(x = DF_frem_Elev %>% 
+                                   filter(group_ind == i) %>% 
+                                   pull(mean), 
+                                 errors = DF_frem_Elev %>% 
+                                   filter(group_ind == i) %>% 
+                                   pull(sigma), 
+                                 calCurves = "intcal13")
+  
+  ages_tmp_rand = sampleDates(tmp_ages, 
+                              bins = tmp_bins, 
+                              nsim = 1000, 
+                              verbose = FALSE)
+  
+  tmp_ckde = ckde(ages_tmp_rand, 
+                  timeRange = c(1950,-49), 
+                  bw = 30)
+  
+  tmp <- rowMeans(tmp_ckde$res.matrix)
+  
+  if(i==1) Tmp <- tmp
+  if(i >1) Tmp <- cbind(Tmp, tmp)
+  if(i==max(ncount)){
+    frem_ckde_means <- data.frame(yrBP = seq(max(tmp_ckde$timeRange), min(tmp_ckde$timeRange), by = -1), 
+                                  Tmp)
+    names(frem_ckde_means) <- c("yrBP", paste0("Site_", ncount))
+    rm(tmp, Tmp)
+  }
+}
+Frem_ckde_means <- frem_ckde_means %>% 
+  reshape2::melt(.,id.vars = "yrBP", value.name = "sum_density") %>% 
+  separate(variable, c("discard", "group_ind"), "_") %>% 
+  mutate(group_ind = as.numeric(group_ind)) %>% 
+  mutate(year_CE = 1950-yrBP) %>% 
+  dplyr::select(-discard) %>% 
+  na.omit()
+
+ncount <- unique(DF_othe_Elev$group_ind)[order(unique(DF_othe_Elev$group_ind))]
+for(i in seq_along(ncount)){
+  
+  tmp_bins = binPrep(sites = rownames(DF_othe_Elev %>% 
+                                        filter(group_ind == i)), 
+                     ages = DF_othe_Elev %>% 
+                       filter(group_ind == i) %>% 
+                       pull(mean), 
+                     h = 10)
+  
+  tmp_ages <- rcarbon::calibrate(x = DF_othe_Elev %>% 
+                                   filter(group_ind == i) %>% 
+                                   pull(mean), 
+                                 errors = DF_othe_Elev %>% 
+                                   filter(group_ind == i) %>% 
+                                   pull(sigma), 
+                                 calCurves = "intcal13")
+  
+  ages_tmp_rand = sampleDates(tmp_ages, 
+                              bins = tmp_bins, 
+                              nsim = 1000, 
+                              verbose = FALSE)
+  
+  tmp_ckde = ckde(ages_tmp_rand, 
+                  timeRange = c(1950,-49), 
+                  bw = 30)
+  
+  tmp <- rowMeans(tmp_ckde$res.matrix)
+  
+  if(i==1) Tmp <- tmp
+  if(i >1) Tmp <- cbind(Tmp, tmp)
+  if(i==max(ncount)){
+    othe_ckde_means <- data.frame(yrBP = seq(max(tmp_ckde$timeRange), min(tmp_ckde$timeRange), by = -1), 
+                                  Tmp)
+    names(othe_ckde_means) <- c("yrBP", paste0("Site_", ncount))
+    rm(tmp, Tmp)
+  }
+}
+Othe_ckde_means <- othe_ckde_means %>% 
+  reshape2::melt(.,id.vars = "yrBP", value.name = "sum_density") %>% 
+  separate(variable, c("discard", "group_ind"), "_") %>% 
+  mutate(group_ind = as.numeric(group_ind)) %>% 
+  mutate(year_CE = 1950-yrBP) %>% 
+  dplyr::select(-discard) %>% 
+  na.omit()
+
+#Now merge these with the site locations
+
+frem_coord <- DF_frem_Elev %>% 
+  dplyr::select(longitude, latitude, elevation, significance, group_ind) %>% 
+  ungroup() %>% 
+  distinct()
+othe_coord <- DF_othe_Elev %>% 
+  dplyr::select(longitude, latitude, elevation, significance, group_ind) %>% 
+  ungroup() %>% 
+  distinct()
+
+frem_ckde_means_coord <- left_join(Frem_ckde_means, 
+                                   frem_coord, 
+                                   by = "group_ind")
+othe_ckde_means_coord <- left_join(Othe_ckde_means, 
+                                   othe_coord, 
+                                   by = "group_ind")
+
+CKDE_means_coord <- rbind(frem_ckde_means_coord, 
+                          othe_ckde_means_coord)
+
+# save(CKDE_means_coord, file = "/home/thomson/Data/Rdata/CKDE_means_coord.Rdata")
+
+p5 <- ggplot(CKDE_means_coord) + 
+  geom_point(aes(x=year_CE, 
+                 y=elevation, 
+                 size = sum_density^2, 
+                 colour = significance), 
+             alpha = 0.02, 
+             shape = 20) + 
+  geom_smooth(data = CKDE_means_coord %>% 
+                filter(significance == "Fremont", 
+                       year_CE > 400 & year_CE < 1300), 
+              aes(x = year_CE,
+                  y = elevation, 
+                  weight = sum_density),
+              colour = "black", 
+              method = "loess", 
+              span = 0.8, 
+              se = FALSE, 
+              size = 1, 
+              linetype = "solid",
+              alpha = 0.5) + 
+  geom_smooth(data = CKDE_means_coord %>% 
+                filter(significance == "Other", 
+                       year_CE > 0 & year_CE < 1450), 
+              aes(x = year_CE,
+                  y = elevation, 
+                  weight = sum_density),
+              colour = "black", 
+              method = "loess", 
+              span = 0.8, 
+              se = FALSE, 
+              size = 1, 
+              linetype = "solid",
+              alpha = 0.5) + 
+  facet_wrap(~significance) + 
+  theme_minimal() + 
+  theme(
+    legend.position = "none", 
+    axis.title.x = element_blank()
+  ) + 
+  scale_color_manual(values = c("Fremont" = "#786290", 
+                                "Other" = "#627F90")) + 
+  labs(
+    y = "elevation (m asl)", 
+    tag = "A"
+  ) + 
+  scale_x_continuous(labels = seq(0, 2000, by = 250), 
+                     breaks = seq(0, 2000, by = 250), 
+                     limits = c(0, 1500)) + 
+  coord_cartesian(xlim = c(0, 1500))
+
+
+png(file="/home/thomson/ERL_paper/Plots/Figure3_updated1.png", w = 1600, h = 1600, res=300)
+plot_grid(p5, 
+          p4, 
+          as_ggplot(p3_legend), 
+          rel_heights = c(7, 4, 1), 
+          ncol = 1, 
+          axis = "lr", 
+          align = "v")
+dev.off()
 
 #Better aligns plot stack than grid.arrange().
 g1 <- ggplotGrob(p1)

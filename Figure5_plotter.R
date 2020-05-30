@@ -6,6 +6,8 @@
 library(tidyverse)
 library(cowplot)
 library(zoo)
+library(grid)
+library(gridExtra)
 
 data_dir <- dir("/home/thomson/Data/Rdata/GDD", full.names = TRUE)
 
@@ -48,6 +50,11 @@ Sites_ages <- CalAges %>%
   dplyr::select(-year, -rav_density, -n) %>% 
   ungroup()
 
+load(file = "/home/thomson/Data/Rdata/CKDE_means_coord.Rdata") #CKDE_means_coord
+ckde_means_coord <- CKDE_means_coord %>% 
+  rename("lon" = "longitude", 
+         "lat" = "latitude")
+
 load(file = "/home/thomson/Data/Rdata/GDD_sites.Rdata") #GDD_sites
 load(file = "/home/thomson/Data/Rdata/PPT_sites.Rdata") #PPT_sites
 
@@ -59,6 +66,16 @@ gdd_ppt_spd <- inner_join(gdd_ppt_sites,
                           Sites_ages, 
                           by = c("lon", "lat", "year_CE")) %>% 
   rename("spd" = "sum_density")
+
+gdd_ppt_spd2 <- full_join(gdd_ppt_sites, 
+                           ckde_means_coord,
+                          by = c("lon", "lat", "year_CE"), 
+                          keep = TRUE) %>% 
+  rename("spd" = "sum_density")
+
+#some of the sites used in the climate analysis are not shared in the CARD database, so these need to be removed
+gdd_ppt_spd2 <- gdd_ppt_spd2[!is.na(gdd_ppt_spd2$significance),]
+
 
 # ggplot(data = gdd_ppt_spd, 
 #        aes(x = gdd_em_zsc, 
@@ -93,6 +110,226 @@ Longevity <- gdd_ppt_spd %>%
   ungroup()
 
 
+#What are the parts of the SPDs that are between the 850-1449 CE limits?
+
+fig5_si <- ggplot(gdd_ppt_spd2 %>% 
+                    filter(year_CE >= 850 & year_CE <= 1449)) + 
+  geom_col(aes(year_CE, 
+               spd, 
+               fill = significance),
+           alpha = 0.5, 
+           position = "identity") + 
+  scale_y_continuous(
+    breaks = c(0, 0.0025, 0.005), 
+    labels = c(0, 0.0025, 0.005)
+  ) + 
+  facet_wrap(~group_ind, 
+             nrow = 5) + 
+  # theme_minimal() + 
+  theme(
+    legend.position = "bottom", 
+    axis.text.x = element_text(angle = 90)
+  ) + 
+  labs(
+    x = "year CE", 
+    y = "Summed probability"
+  )
+
+
+Longevity2 <- gdd_ppt_spd2 %>% 
+  filter(
+    year_CE >= 850, 
+    year_CE <= 1449
+  ) %>% 
+  group_by(
+    lon, 
+    lat, 
+    significance, 
+    elevation
+  ) %>% 
+  summarise(
+    onset_yr = min(year_CE), 
+    aband_yr = max(year_CE), 
+    longevity = n(), 
+    gdd_zsc_mx = max(gdd_em_zsc, na.rm = TRUE), 
+    gdd_zsc_mn = min(gdd_em_zsc, na.rm = TRUE), 
+    gdd_zsc_med = median(gdd_em_zsc, na.rm = TRUE), 
+    gdd_zsc_ave = mean(gdd_em_zsc), na.rm = TRUE,    
+    gdd_zsc_sd = sd(gdd_em_zsc, na.rm = TRUE), 
+    gdd_ave = mean(gdd_em, na.rm = TRUE), 
+    gdd_sd = sd(gdd_em, na.rm = TRUE), 
+    ppt_zsc_mx = max(ppt_em_zsc, na.rm = TRUE), 
+    ppt_zsc_mn = min(ppt_em_zsc, na.rm = TRUE), 
+    ppt_zsc_med = median(ppt_em_zsc, na.rm = TRUE), 
+    ppt_zsc_ave = mean(ppt_em_zsc, na.rm = TRUE), 
+    ppt_zsc_sd = sd(ppt_em_zsc, na.rm = TRUE), 
+    ppt_ave = mean(ppt_em, na.rm = TRUE), 
+    spd_sum = sum(spd, na.rm = TRUE), 
+    spd_qnt = quantile(spd, na.rm = TRUE)[3], 
+    spd_ave = mean(spd, na.rm = TRUE)) %>% 
+  ungroup()
+
+length(Longevity2$onset_yr[Longevity2$onset_yr==850])
+length(Longevity2$aband_yr[Longevity2$aband_yr==1449])
+
+Longevity3 <- ckde_means_coord %>% 
+  filter(year_CE >= 300, 
+         year_CE < 1449) %>% 
+  group_by(
+    lon, 
+    lat, 
+    significance, 
+    elevation
+  ) %>% 
+  summarise(
+    sum_sp = sum(sum_density), 
+    ave_sp = mean(sum_density), 
+    med_sp = median(sum_density), 
+    max_sp = max(sum_density), 
+    sd_sp = sd(sum_density), 
+    fourth_quantile = quantile(sum_density)[4], 
+    longevity = n()
+  ) %>% 
+  ungroup()
+
+tmp <- Longevity3 %>%
+  filter(longevity < 1449 & significance == "Other") %>% 
+  dplyr::select(longevity, sd_sp)
+cor.test(x=as.vector(unlist(tmp[,1])), y=as.vector(unlist(tmp[,2])))
+
+#elevation
+#Fremont: 0.2917311, p-value = 0.132
+#Other: 0.1485458 ,  p-value = 0.3136
+
+#sd_sp
+#Fremont: -0.3366999, p-value = 0.07978
+#Other: -0.6199149,  p-value = 2.618e-06
+
+#med_sp
+#Fremont: -0.8840427, p-value = 4.484e-10
+#Other: -0.7800986, p-value = 6.337e-11
+
+
+
+p1a <- ggplot(data = Longevity3 %>% 
+                filter(longevity < 1149), 
+             aes(x = longevity, 
+                 y = elevation)) + 
+  geom_smooth(aes(colour = significance), 
+              method = "lm", 
+              show.legend = FALSE) + 
+  geom_point(aes(colour = significance, 
+                 shape = significance), 
+             alpha = 0.7) + 
+  scale_colour_manual(values = c("Fremont" = "#786290", 
+                                 "Other" = "#627F90")) + 
+  scale_shape_manual(values = c("Fremont" = 15, 
+                                "Other" = 19)) + 
+  theme_minimal() + 
+  facet_wrap(~significance) + 
+  labs(
+    x = "Longevity (years), between 300-1449 CE",
+    y = "Elevation (m asl)", 
+    tag = "A"
+  ) + 
+  theme(
+    legend.position = "none",
+    axis.title = element_text(size = 9)
+  ) + 
+  coord_cartesian(xlim = c(0, 1150))
+
+p2a <- ggplot(data = Longevity3 %>% 
+                filter(longevity < 1149), 
+              aes(x = longevity, 
+                  y = sd_sp)) + 
+  geom_smooth(aes(colour = significance), 
+              method = "lm", 
+              show.legend = FALSE) + 
+  geom_point(aes(colour = significance, 
+                 shape = significance), 
+             alpha = 0.7) + 
+  scale_colour_manual(values = c("Fremont" = "#786290", 
+                                 "Other" = "#627F90")) + 
+  scale_shape_manual(values = c("Fremont" = 15, 
+                                "Other" = 19)) + 
+  theme_minimal() + 
+  facet_wrap(~significance) + 
+  labs(
+    x = "Longevity (years), between 300-1449 CE",
+    y = "Variability of summed probability", 
+    tag = "B"
+  ) + 
+  theme(
+    legend.position = "none",
+    axis.title = element_text(size = 9)
+  ) + 
+  coord_cartesian(xlim = c(0, 1150))
+
+p3a <- ggplot(data = Longevity3 %>% 
+                filter(longevity < 1149)) + 
+  geom_vline(xintercept = 0, alpha = 0.5) + 
+  geom_density(aes(longevity, 
+                     fill = significance), 
+               colour = 0, 
+               alpha = 0.6) + 
+  scale_fill_manual(values = c("Fremont" = "#786290", 
+                                 "Other" = "#627F90")) + 
+  theme_minimal() + 
+  facet_wrap(~significance) + 
+  labs(
+    x = "Longevity (years), between 300-1449 CE",
+    y = "Density of summed probability", 
+    tag = "C"
+  ) + 
+  theme(
+    legend.position = "none",
+    axis.title = element_text(size = 9)
+  ) + 
+  coord_cartesian(xlim = c(0, 1150))
+
+p4a <- ggplot(data = Longevity2 %>% 
+                filter(longevity < 600)) + 
+  geom_vline(xintercept = 0, alpha = 0.5) + 
+  geom_density(aes(longevity, 
+                   fill = significance), 
+               colour = 0, 
+               alpha = 0.6) + 
+  scale_fill_manual(values = c("Fremont" = "#786290", 
+                               "Other" = "#627F90")) + 
+  theme_minimal() + 
+  facet_wrap(~significance) + 
+  labs(
+    x = "Longevity (years), between 850-1449 CE",
+    y = "Density of summed probability", 
+    tag = "D"
+  ) + 
+  theme(
+    legend.position = "none",
+    axis.title = element_text(size = 9)
+  ) + 
+  coord_cartesian(xlim = c(0, 600))
+
+p5a <- ggplot(data = Longevity2 %>% 
+                filter(longevity < 600)) + 
+  geom_point(aes(x = gdd_zsc_med, 
+                 y = spd_qnt,
+                   colour = significance, 
+                 shape = significance), 
+               alpha = 0.6) + 
+  scale_fill_manual(values = c("Fremont" = "#786290", 
+                               "Other" = "#627F90")) + 
+  theme_minimal() + 
+  facet_wrap(~significance) + 
+  labs(
+    x = "Median of GDD z-score, 850-1449 CE",
+    y = "Top 25% of SP", 
+    tag = "D"
+  ) + 
+  theme(
+    legend.position = "none",
+    axis.title = element_text(size = 9)
+  )
+
 df_elev <- DF_elev %>% 
   ungroup() %>% 
   rename("lon" = "longitude", 
@@ -104,9 +341,49 @@ df_elev <- DF_elev %>%
 
 test <- inner_join(Longevity, df_elev, by = c("lon", "lat"))
 
-p1 <- ggplot(data = Longevity, 
+#spd_med, #gdd_ave, #ppt_ave, #ppt_zsc_med
+
+#elevation
+#Fremont: 0.3615233, p-value = 0.09008
+#Other: 0.2316819 , p-value = 0.2995
+
+#spd_med
+#Fremont: -0.745503, p-value = 4.457e-05
+#Other: -0.7243114, p-value = 0.000138
+
+#gdd_zsc_mx
+#Fremont: -0.03128075, p-value = 0.8873
+#Other: -0.31305, p-value = 0.156
+
+#gdd_ave
+#Fremont: -0.354501, p-value = 0.09697
+#Other:  -0.2135237 , p-value = 0.34
+
+#gdd_sd
+#Fremont: -0.3206648, p-value = 0.1357
+#Other: -0.3354593, p-value = 0.127
+
+#ppt_zsc_med
+#Fremont: 0.3551264, p-value = 0.09634
+#Other: 0.5782844, p-value = 0.004815
+
+#ppt_zsc_sd
+#Fremont: 0.3551264, p-value = 0.09634
+#Other:  0.3551264, p-value = 0.09634
+
+#ppt_ave
+#Fremont: 0.4280891, p-value = 0.04156
+#Other: 0.276151, p-value = 0.2135
+
+tmp <- Longevity2 %>%
+  filter(longevity < 600 & significance == "Other") %>%
+  dplyr::select(longevity, ppt_zsc_sd)
+cor.test(x=as.vector(unlist(tmp[,1])), y=as.vector(unlist(tmp[,2])))
+
+p1 <- ggplot(data = Longevity2 %>% 
+               filter(longevity < 600), 
              aes(x = longevity, 
-                 y = spd_med)) + 
+                 y = gdd_zsc_med)) + 
   geom_hline(yintercept = 0, 
              alpha = 0.5) + 
   geom_smooth(aes(colour = significance), 
@@ -122,46 +399,49 @@ p1 <- ggplot(data = Longevity,
   theme_minimal() + 
   facet_wrap(~significance) + 
   labs(
-    x = "Number of occupied years between 850-1449 CE", 
-    y = "Median SPD \nwithin occupation range", 
+    x = "Longevity (years)",
+    y = "Median of GDD z-score", 
     tag = "A"
   ) + 
   theme(
     legend.position = "none",
-    strip.text = element_blank(),  
     axis.title = element_text(size = 9)
-  )
+  ) + 
+  coord_cartesian(xlim = c(0, 600))
 
-p2 <- ggplot(data = Longevity, 
+p2 <- ggplot(data = Longevity2 %>% 
+               filter(longevity < 600), 
              aes(x = longevity, 
-                 y = gdd_zsc_ave)) + 
-  geom_hline(yintercept = 0, 
-             alpha = 0.5)  + 
+                 y = gdd_zsc_sd)) + 
   geom_point(aes(colour = significance, 
                  shape = significance), 
              alpha = 0.7) + 
+  geom_smooth(aes(colour = significance), 
+              method = "lm", 
+              show.legend = FALSE) + 
   scale_colour_manual(values = c("Fremont" = "#786290", 
                                  "Other" = "#627F90")) + 
   scale_shape_manual(values = c("Fremont" = 15, 
                                 "Other" = 19)) + 
   theme_minimal() + 
-  facet_wrap(~significance, 
-             scales = "free_y") + 
+  facet_wrap(~significance) + 
   labs(
-    x = "Number of occupied years between 850-1449 CE", 
-    y = "Mean GDD z-score \nwithin occupation range", 
+    x = "Longevity (years)",
+    y = "Variability of GDD z-score", 
     tag = "B"
   ) + 
   theme(
     legend.position = "none",
-    strip.text = element_blank(), 
     axis.title = element_text(size = 9)
-  )
+  ) + 
+  coord_cartesian(xlim = c(0, 600))
 
-#Fremont like low variability GDD; Other like high variability GDD
-p3 <- ggplot(data = Longevity, 
+p3 <- ggplot(data = Longevity2 %>% 
+               filter(longevity < 600), 
              aes(x = longevity, 
-                 y = gdd_sd)) + 
+                 y = ppt_zsc_med)) + 
+  geom_hline(yintercept = 0, 
+             alpha = 0.5) + 
   geom_smooth(aes(colour = significance), 
               method = "lm", 
               show.legend = FALSE) + 
@@ -173,26 +453,25 @@ p3 <- ggplot(data = Longevity,
   scale_shape_manual(values = c("Fremont" = 15, 
                                 "Other" = 19)) + 
   theme_minimal() + 
-  facet_wrap(~significance, 
-             scales = "free_y") + 
+  facet_wrap(~significance) + 
   labs(
-    x = "Number of occupied years between 850-1449 CE", 
-    y = "Variabiliy of GDD \nwithin occupation range", 
+    x = "Longevity (years)", 
+    y = "Median of precip. z-score", 
     tag = "C"
   ) + 
   theme(
     legend.position = "none", 
     strip.text = element_blank(), 
     axis.title = element_text(size = 9)
-  )
+    ) + 
+  coord_cartesian(xlim = c(0, 600))
 
 
 #Fremont like PPT z-score >0 but not too much; Other uncertain
-p4 <- ggplot(data = Longevity, 
+p4 <- ggplot(data = Longevity2 %>% 
+               filter(longevity < 600), 
              aes(x = longevity, 
-                 y = ppt_zsc_ave)) + 
-  geom_hline(yintercept = 0, 
-             alpha = 0.5)  + 
+                 y = ppt_zsc_sd)) + 
   geom_smooth(aes(colour = significance), 
               method = "lm", 
               show.legend = FALSE) + 
@@ -204,18 +483,18 @@ p4 <- ggplot(data = Longevity,
   scale_shape_manual(values = c("Fremont" = 15, 
                                 "Other" = 19)) + 
   theme_minimal() + 
-  facet_wrap(~significance, 
-             scales = "free_y") + 
+  facet_wrap(~significance) + 
   labs(
-    x = "Number of occupied years between 850-1449 CE", 
-    y = "Mean prec. z-score \nwithin occupation range", 
+    x = "Longevity (years)",
+    y = "Variability of precip. z-score", 
     tag = "D"
   ) + 
   theme(
     legend.position = "none",
     strip.text = element_blank(), 
-    axis.title = element_text(size = 9)
-  )
+    axis.title = element_text(size = 9) 
+  ) + 
+  coord_cartesian(xlim = c(0, 600))
 
 #Fremont like PPT z-score >0 but not too much; Other uncertain
 p5 <- ggplot(data = Longevity, 
@@ -223,16 +502,18 @@ p5 <- ggplot(data = Longevity,
                  y = ppt_zsc_sd)) + 
   geom_point(aes(colour = significance, 
                  shape = significance), 
-             alpha = 0.7) + 
+             alpha = 0.7)  + 
+  geom_smooth(aes(colour = significance), 
+              method = "lm", 
+              show.legend = FALSE) + 
   scale_colour_manual(values = c("Fremont" = "#786290", 
                                  "Other" = "#627F90")) + 
   scale_shape_manual(values = c("Fremont" = 15, 
                                 "Other" = 19)) + 
   theme_minimal() + 
-  facet_wrap(~significance, 
-             scales = "free_y") + 
+  facet_wrap(~significance) + 
   labs(
-    x = "Number of occupied years between 850-1449 CE", 
+    # x = "Number of occupied years between 850-1449 CE", 
     y = "Variability of precipitation \nwithin occupation range", 
     tag = "E"
   ) + 
@@ -240,7 +521,8 @@ p5 <- ggplot(data = Longevity,
     legend.position = "none",
     strip.text = element_blank(), 
     axis.title = element_text(size = 9)
-  )
+  ) + 
+  coord_cartesian(xlim = c(0, 600))
 
 #Fremont like PPT z-score >0 but not too much; Other uncertain
 p6 <- ggplot(data = Longevity, 
@@ -260,27 +542,51 @@ p6 <- ggplot(data = Longevity,
   facet_wrap(~significance, 
              scales = "free_y") + 
   labs(
-    x = "Number of occupied years between 850-1449 CE", 
+    # x = "Number of occupied years between 850-1449 CE", 
     y = "Mean precipitation \nwithin occupation range", 
-    tag = "B"
+    tag = "F"
   ) + 
   theme(
     legend.position = "none",
     strip.text = element_blank(), 
     axis.title = element_text(size = 9)
-  )
+  ) + 
+  coord_cartesian(xlim = c(0, 600))
 
-
-
-png(file="/home/thomson/ERL_paper/Plots/Figure6_SIb.png", w = 2400, h = 2400, res=300)
-cowplot::plot_grid(p1, 
-                   p6, 
-                   p3,
-                   p4, 
-                   align = "v", 
-                   nrow = 2)
+gridplots <- cowplot::plot_grid(p1, 
+                               p2, 
+                               p3,
+                               p4, 
+                               align = "lr", 
+                               nrow = 2)
+x.grob <- textGrob("Number of years occupied between 850-1449 CE", 
+                   gp=gpar(fontsize=11))
+y.grob <- textGrob("Variable evaluated only for occupied years", 
+                   gp=gpar(fontsize=11), 
+                   rot = 90)
+png(file="/home/thomson/ERL_paper/Plots/Figure6_updated.png", w = 2400, h = 1600, res=300)
+grid.arrange(arrangeGrob(gridplots), 
+             left = y.grob,
+             bottom = x.grob)
 dev.off()
 
+
+gridplots <- cowplot::plot_grid(p1a, 
+                                p2a, 
+                                p3a,
+                                p4a, 
+                                align = "lr", 
+                                nrow = 2)
+x.grob <- textGrob("Number of years occupied for the specified range", 
+                   gp=gpar(fontsize=11))
+y.grob <- textGrob("Variable evaluated only for occupied years", 
+                   gp=gpar(fontsize=11), 
+                   rot = 90)
+png(file="/home/thomson/ERL_paper/Plots/Figure6_SI_updated.png", w = 2400, h = 1600, res=300)
+grid.arrange(arrangeGrob(gridplots), 
+             left = y.grob,
+             bottom = x.grob)
+dev.off()
 
 
 dem_dir <- dir("/home/thomson/Data/DEM/PRISM_800m_DEM/", 
@@ -307,7 +613,7 @@ ggplot() +
             aes(x = x, 
                 y = y, 
                 fill = values), 
-            alpha = 0.7, 
+            alpha = 0.6, 
             show.legend = TRUE) + 
   scale_fill_gradient(low = "black", 
                       high = "white", 
@@ -315,21 +621,25 @@ ggplot() +
   scale_size_continuous(name = "Longevity \n(years)") +
   geom_sf(data = us_states_proj,
           fill = "transparent") + 
-  geom_point(data = Longevity %>% 
-               filter(significance == "Fremont"), 
+  geom_point(data = Longevity2, 
              aes(x = lon, 
                  y = lat, 
-                 size = longevity), 
-             shape = 15, 
-             alpha = 0.5, 
-             colour = "darkblue") + 
+                 size = longevity, 
+                 shape = significance, 
+                 colour = significance),  
+             alpha = 1) + 
+  scale_colour_manual(values = c("Fremont" = "#786290", 
+                                 "Other" = "#627F90")) + 
+  scale_shape_manual(values = c("Fremont" = 15, 
+                                "Other" = 19)) + 
+  facet_wrap(~significance) + 
   labs(
     x = "degrees west longitude", 
     y = "degrees north latitude"
   ) + 
   theme_minimal() + 
   theme(
-    legend.position = "left", 
+    legend.position = "bottom", 
     legend.key = element_rect(fill = "#ffffff", 
                               color = "#ffffff"), 
     legend.box.background = element_rect(fill = "lightgrey")

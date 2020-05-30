@@ -9,6 +9,7 @@ library(gridExtra)
 library(zoo)
 library(gtable)
 library(grid)
+library(reshape2)
 
 #Set paths
 prox_path <- path.expand("/home/thomson/Data/Paleoclimate/")
@@ -230,17 +231,80 @@ p2 <- ggplot(data = CalAges,
                      labels = seq(0, 2000, by = 250), 
                      limits = c(0, 2000))
 
+p2_legend <- cowplot::get_legend(p2)
+
+load(file = "/home/thomson/Data/Rdata/fremont_ckde.Rdata") #frem_ckde
+load(file = "/home/thomson/Data/Rdata/other_ckde.Rdata") #othe_ckde
+
+tmp1 <- data.frame(significance = "Fremont", 
+                   frem_ckde$res.matrix %>% 
+                     melt(., value.name = "SP", na.rm = TRUE) %>% 
+                     rename("year_CE" = Var1, "simulation" = Var2))
+tmp2 <- data.frame(significance = "Other", 
+                   othe_ckde$res.matrix %>% 
+                     melt(., value.name = "SP", na.rm = TRUE) %>% 
+                     rename("year_CE" = Var1, "simulation" = Var2))
+tmp_ap <- rbind(tmp1, tmp2)
+
+means_ap <- rbind(data.frame(significance = "Fremont", 
+                             year_CE = c(1:2000), 
+                             SP = rowMeans(frem_ckde$res.matrix)), 
+                  data.frame(significance = "Other", 
+                             year_CE = c(1:2000), 
+                             SP = rowMeans(othe_ckde$res.matrix))) %>% 
+  na.omit()
+
+# save(tmp_ap, file = "/home/thomson/Data/Rdata/ap_sites_ckde_elev.Rdata")
+# save(means_ap, file = "/home/thomson/Data/Rdata/ap_sites_mean_ckde_elev.Rdata")
+
+p3 <- ggplot() + 
+  geom_line(data = tmp_ap, aes(x = year_CE, y = SP, colour = significance), alpha = 0.5, size = 0.05) + 
+  scale_colour_manual(values = c("Fremont" = "#786290", 
+                                 "Other" = "#627F90")) + 
+  geom_line(data = means_ap %>% 
+              filter(significance == "Fremont"), 
+            aes(x = year_CE, y = SP), 
+            colour = "#786290") + 
+  geom_line(data = means_ap %>% 
+              filter(significance == "Other"), 
+            aes(x = year_CE, y = SP), 
+            colour = "#627F90") + 
+  theme_minimal() + 
+  theme(
+    legend.position = "none",
+    panel.grid.major.y = element_blank(), 
+    panel.grid.minor.y = element_blank()
+  ) + 
+  labs(x = "Year CE", 
+       y = "Summed Probability", 
+       tag = "B") + 
+  scale_x_continuous(position = "bottom", 
+                     breaks = seq(0, 2000, by = 250), 
+                     labels = seq(0, 2000, by = 250), 
+                     limits = c(0, 2000))
+
+
 #grid.arrange(p1, p2, nrow = 2)
 
 #Better aligns plot stack than grid.arrange().
-g1 <- ggplotGrob(p1)
-g2 <- ggplotGrob(p2)
+# g1 <- ggplotGrob(p1)
+# g2 <- ggplotGrob(p3)
+# g3 <- ggplotGrob(as_ggplot(p2_legend))
+# 
+# g <- rbind(g1,g2,g3, size = "first")
+# g$widths <- unit.pmax(g1$widths, g2$widths) # use the largest widths
+# # g$layout[grepl("guide", g$layout$name),c("t","b")] <- c(1,nrow(g))
+# grid.newpage()
+# grid.draw(g)
 
-g <- rbind(g1,g2, size = "first")
-g$widths <- unit.pmax(g1$widths, g2$widths) # use the largest widths
-# g$layout[grepl("guide", g$layout$name),c("t","b")] <- c(1,nrow(g))
-grid.newpage()
-grid.draw(g)
+png(file="/home/thomson/ERL_paper/Plots/Figure2_updated.png", w = 1000, h = 1000, res=300)
+plot_grid(p1, 
+          p3, 
+          as_ggplot(p2_legend), 
+          rel_heights = c(4, 4, 1), 
+          ncol = 1, 
+          align = "v")
+dev.off()
 
 #Computes Pearson correlation parameters.
 
@@ -268,4 +332,87 @@ grid.draw(g)
 # 
 # chisq.test(CalAges_moberg$rav_sum, CalAges_moberg$Anomaly)
 
+
+# 
+# var1 <- moberg %>% 
+#   rename("year_CE" = "Year", "value" = "LF") %>% 
+#   # filter(year_CE > 735 & year_CE < 1247) %>%
+#   filter(year_CE > 800 & year_CE < 1350) %>%
+#   dplyr::select(year_CE, value) %>%
+#   mutate(norm_value = (value+abs(min(value)))/max(value+abs(min(value))),
+#          cdf_value1 = cumsum(norm_value)/sum(norm_value),
+#          cdf_value2 = cumsum(value)/sum(value))
+# var2 <- data.frame(significance = "Fremont", 
+#                    year_CE = c(1:2000), 
+#                    SP = rowMeans(frem_ckde$res.matrix)) %>% 
+#   na.omit() %>% 
+#   # filter(year_CE > 735 & year_CE < 1247) %>%
+#   filter(year_CE > 800 & year_CE < 1350) %>% 
+#   rename("value" = "SP") %>%
+#   dplyr::select(year_CE, value) %>%
+#   mutate(norm_value = (value+abs(min(value)))/max(value+abs(min(value))),
+#          cdf_value1 = cumsum(norm_value)/sum(norm_value),
+#          cdf_value2 = cumsum(value)/sum(value))
+# 
+# Tmp <- left_join(var1, var2, by = "year_CE") %>%
+#   left_join(., CalAges_fremont %>%
+#               dplyr::select(year_CE, sum_density, rav_density),
+#             by = "year_CE") %>%
+#   rename("spd_sumdensity" = "sum_density",
+#          "spd_ravdensity" = "rav_density")
+# 
+# 
+# 
+# RMSE1 <- Tmp %>%
+#   mutate(mse = (value.x - value.y)^2) %>%
+#   summarize(rmse = sqrt(sum(mse)/n()))
+# 
+# RMSE2 <- Tmp %>% 
+#   mutate(mse = (value.x - spd_sumdensity)^2) %>% 
+#   summarize(rmse = sqrt(sum(mse)/n()))
+# 
+# RMSE3 <- Tmp %>% 
+#   mutate(mse = (value.x - spd_ravdensity)^2) %>% 
+#   summarize(rmse = sqrt(sum(mse)/n()))
+# 
+# ggplot(Tmp, 
+#        aes(x = year_CE)) + 
+#   geom_line(aes(y = cdf_value1.x), 
+#             colour = "red") + 
+#   geom_line(aes(y = cdf_value1.y), 
+#             colour = "blue")
+# 
+# ggplot(Tmp, 
+#        aes(x = year_CE)) + 
+#   geom_line(aes(y = norm_value.x), 
+#             colour = "red") + 
+#   geom_line(aes(y = spd_ravdensity), 
+#             colour = "blue")
+# 
+# ks.test(Tmp$cdf_value1.x, Tmp$cdf_value1.y)
+# ks.test(Tmp$cdf_value2.x, Tmp$cdf_value2.y)
+# 
+# chisq.test(Tmp$value.x, Tmp$value.y)
+# chisq.test(Tmp$value.x, Tmp$spd_ravdensity)
+# gofTest(Tmp$cdf_value1.x~Tmp$cdf_value1.y)
+# 
+# 
+# plot(var1$year_CE, var1$cdf_value1, type = "l", col = "red")
+# lines(var2$year_CE, var2$cdf_value1, col = "blue")
+# 
+# x1 <- (var1+abs(min(var1)))/max(var1+abs(min(var1)))
+# x2 <- var2/max(var2)
+# 
+# plot((var1+abs(min(var1)))/max(var1+abs(min(var1))), type = "l", col = "blue")
+# lines(var2/max(var2), col = "red")
+# 
+# ggplot() + 
+#   geom_line(data = var1, 
+#             aes(x = year_CE, 
+#                 y = cdf_value2)) + 
+#   geom_line(data = var2, 
+#             aes(x = year_CE, 
+#                 y = cdf_value2))
+# 
+# EnvStats::gofTest(var2$cdf_value2, test = "chisq")
 
